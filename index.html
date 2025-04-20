@@ -20,21 +20,25 @@
       color: #fff
     }
 
-    #camera,
     #overlay {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: fill;
-      /* Force stretching */
-    }
-
-    #overlay {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      /* or “cover” if you prefer cropping */
+      object-position: center;
       pointer-events: none;
       background: transparent
     }
+
+    #camera {
+      display: none;
+    }
+
+
+
 
     #controls {
       position: fixed;
@@ -322,6 +326,16 @@ void main() {
       }
       camSel.addEventListener('change', () => startStream(camSel.value));
 
+      function updateQuad() {
+        const vr = video.videoWidth / video.videoHeight;
+        const sr = innerWidth / innerHeight;
+        let sx = 1, sy = 1;
+        if (vr > sr) sy = sr / vr; else sx = vr / sr;
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+          -sx, -sy, 0, 1, sx, -sy, 1, 1, -sx, sy, 0, 0, sx, sy, 1, 0]), gl.STATIC_DRAW);
+      }
+
       /* Resize */
       function fit() {
         if (!video.videoWidth) return;
@@ -340,19 +354,18 @@ void main() {
         // Set WebGL viewport to match the canvas size
         gl.viewport(0, 0, canvas.width, canvas.height);
       }
-      video.onloadedmetadata = () => { fit(); requestAnimationFrame(draw); };
-      window.addEventListener('resize', fit);
+
+      video.onloadedmetadata = () => { fit(); updateQuad(); requestAnimationFrame(draw); };
+      window.addEventListener('resize', () => { fit(); updateQuad(); });
+
+
 
       /* HSV util */
       function rgb2hsv(r, g, b) { r /= 255; g /= 255; b /= 255; const v = Math.max(r, g, b), c = v - Math.min(r, g, b); let h = 0, s = v ? c / v : 0; if (c) { if (v === r) h = (g - b) / c % 6; else if (v === g) h = 2 + (b - r) / c; else h = 4 + (r - g) / c; h = Math.round(h * 60); if (h < 0) h += 360; } return [h, Math.round(s * 100), Math.round(v * 100)]; }
 
       function draw() {
         if (video.readyState < 2 || !video.videoWidth) { return requestAnimationFrame(draw); }
-        if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-          gl.viewport(0, 0, canvas.width, canvas.height);
-        }
+
         gl.useProgram(program);
 
         // Upload video frame as texture
