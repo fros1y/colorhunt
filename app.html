@@ -132,10 +132,10 @@
   <canvas id="overlay"></canvas>
 
   <div id="controls">
-    <div class="sliderBox"><label>Hue Range</label>
+    <div class="sliderBox"><label>Hue</label>
       <div id="hueSlider"></div>
     </div>
-    <div class="sliderBox"><label>Saturation Range</label>
+    <div class="sliderBox"><label>Saturation</label>
       <div id="satSlider"></div>
     </div>
     <div class="sliderBox"><label>Desaturate Others</label><input id="desat" type="range" min="0" max="100" value="80">
@@ -143,8 +143,9 @@
     <div class="sliderBox"><label>Highlight Factor</label><input id="highlight" type="range" min="0" max="200"
         value="50"></div>
     <div class="sliderBox"><label>Camera</label><select id="camSelect"></select></div>
-    <button id="save">Save ✚</button>
+    <button id="save">✚</button>
     <select id="presets"></select>
+    <button id="deletePreset" disabled>🗑️</button>
   </div>
 
   <div id="startScreen"><button id="startBtn">Start Camera</button></div>
@@ -163,6 +164,7 @@
       const saveBtn = document.getElementById('save');
       const presetSel = document.getElementById('presets');
       const camSel = document.getElementById('camSelect');
+      const deleteBtn = document.getElementById('deletePreset');
       let currentStream = null;
 
       /* Sliders */
@@ -262,10 +264,78 @@
       }
 
       /* Presets */
-      function loadPresets() { const list = JSON.parse(localStorage.getItem('colorPresets') || '[]'); presetSel.innerHTML = ''; list.forEach((p, i) => { const opt = document.createElement('option'); opt.value = i; opt.text = p.name; presetSel.appendChild(opt); }); }
+      function loadPresets() {
+        const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
+        presetSel.innerHTML = '';
+        // Add a default empty option
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.text = '-- Select Preset --';
+        presetSel.appendChild(defaultOpt);
+
+        list.forEach((p, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.text = p.name;
+          presetSel.appendChild(opt);
+        });
+
+        // Enable/disable delete button based on selection
+        deleteBtn.disabled = presetSel.value === '';
+      }
+
+      // Delete button functionality
+      deleteBtn.onclick = function () {
+        if (presetSel.value === '') return;
+
+        if (confirm('Are you sure you want to delete this preset?')) {
+          const idx = parseInt(presetSel.value);
+          const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
+
+          // Remove the preset at the selected index
+          list.splice(idx, 1);
+
+          // Save updated list
+          localStorage.setItem('colorPresets', JSON.stringify(list));
+
+          // Refresh preset list
+          loadPresets();
+        }
+      };
+
+      // Update delete button state when preset selection changes
+      presetSel.onchange = function () {
+        const idx = presetSel.value;
+        deleteBtn.disabled = idx === '';
+
+        if (idx === '') return;
+        const p = JSON.parse(localStorage.getItem('colorPresets'))[idx];
+        hueSlider.noUiSlider.set([p.hMin, p.hMax]);
+        satSlider.noUiSlider.set([p.sMin, p.sMax]);
+        desatEl.value = p.desat;
+        hiEl.value = p.highlight;
+        updateSatGradient();
+      };
+
+      saveBtn.onclick = function () {
+        const name = prompt('Preset name?');
+        if (!name) return;
+        const preset = {
+          name,
+          hMin: +hueSlider.noUiSlider.get()[0],
+          hMax: +hueSlider.noUiSlider.get()[1],
+          sMin: +satSlider.noUiSlider.get()[0],
+          sMax: +satSlider.noUiSlider.get()[1],
+          desat: +desatEl.value,
+          highlight: +hiEl.value
+        };
+        const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
+        list.push(preset);
+        localStorage.setItem('colorPresets', JSON.stringify(list));
+        loadPresets();
+      };
+
       loadPresets();
-      saveBtn.onclick = function () { const name = prompt('Preset name?'); if (!name) return; const preset = { name, hMin: +hueSlider.noUiSlider.get()[0], hMax: +hueSlider.noUiSlider.get()[1], sMin: +satSlider.noUiSlider.get()[0], sMax: +satSlider.noUiSlider.get()[1], desat: +desatEl.value, highlight: +hiEl.value }; const list = JSON.parse(localStorage.getItem('colorPresets') || '[]'); list.push(preset); localStorage.setItem('colorPresets', JSON.stringify(list)); loadPresets(); };
-      presetSel.onchange = function () { const idx = presetSel.value; if (idx === '') return; const p = JSON.parse(localStorage.getItem('colorPresets'))[idx]; hueSlider.noUiSlider.set([p.hMin, p.hMax]); satSlider.noUiSlider.set([p.sMin, p.sMax]); desatEl.value = p.desat; hiEl.value = p.highlight; updateSatGradient(); };
 
       if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
     })();
