@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable"="yes" />
   <title>Color‑Highlight AR (Offline‑Ready)</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
@@ -168,6 +168,17 @@
 
       /* Camera */
       const startScreen = document.getElementById('startScreen');
+
+      // Hide start screen on mobile browsers
+      function isMobile() {
+        return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
+      }
+      if (isMobile()) {
+        startScreen.style.display = 'none';
+        startStream();
+        populateCamSelect();
+      }
+
       document.getElementById('startBtn').addEventListener('click', async () => {
         startScreen.style.display = 'none';
         await startStream();
