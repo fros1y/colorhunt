@@ -89,7 +89,10 @@
 
     #hueSlider .noUi-connect,
     #satSlider .noUi-connect {
-      background: rgba(255, 255, 255, .35)
+      background: transparent;
+      /* Optional: add a subtle border to show the selection area */
+      border-top: 1px dashed rgba(255, 255, 255, 0.5);
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.5);
     }
 
     #startScreen {
