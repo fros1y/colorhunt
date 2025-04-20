@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Color‑Highlight AR (Offline‑Ready)</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+      color: #fff
+    }
+
+    #camera,
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    #overlay {
+      pointer-events: none;
+      background: transparent
+    }
+
+    #controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, .6);
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      z-index: 20
+    }
+
+    .sliderBox {
+      flex: 1 1 240px;
+      min-width: 200px
+    }
+
+    .sliderBox label {
+      display: block;
+      margin-bottom: 4px;
+      text-align: center
+    }
+
+    .noUi-target {
+      touch-action: none
+    }
+
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #1e90ff;
+      color: #fff;
+      cursor: pointer
+    }
+
+    select {
+      padding: 4px;
+      border-radius: 4px;
+      min-width: 140px
+    }
+
+    #hueSlider .noUi-base {
+      background: linear-gradient(90deg, red 0%, yellow 17%, lime 33%, cyan 50%, blue 67%, magenta 83%, red 100%)
+    }
+
+    #satSlider .noUi-base {
+      background: linear-gradient(90deg, hsl(0, 0%, 50%) 0%, hsl(0, 100%, 50%) 100%)
+    }
+
+    #hueSlider .noUi-connect,
+    #satSlider .noUi-connect {
+      background: rgba(255, 255, 255, .35)
+    }
+
+    #startScreen {
+      position: fixed;
+      inset: 0;
+      background: #000d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50
+    }
+
+    #startBtn {
+      font-size: 18px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      background: #28a745;
+      color: #fff;
+      border: none;
+      cursor: pointer
+    }
+  </style>
+</head>
+
+<body>
+  <video id="camera" autoplay playsinline muted></video>
+  <canvas id="overlay"></canvas>
+
+  <div id="controls">
+    <div class="sliderBox"><label>Hue Range</label>
+      <div id="hueSlider"></div>
+    </div>
+    <div class="sliderBox"><label>Saturation Range</label>
+      <div id="satSlider"></div>
+    </div>
+    <div class="sliderBox"><label>Desaturate Others</label><input id="desat" type="range" min="0" max="100" value="80">
+    </div>
+    <div class="sliderBox"><label>Highlight Factor</label><input id="highlight" type="range" min="0" max="200"
+        value="50"></div>
+    <div class="sliderBox"><label>Camera</label><select id="camSelect"></select></div>
+    <button id="save">Save ✚</button>
+    <select id="presets"></select>
+  </div>
+
+  <div id="startScreen"><button id="startBtn">Start Camera</button></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+  <script>
+    (function () {
+      const video = document.getElementById('camera');
+      const canvas = document.getElementById('overlay');
+      const ctx = canvas.getContext('2d');
+      const hidden = document.createElement('canvas');
+      const hctx = hidden.getContext('2d');
+
+      const desatEl = document.getElementById('desat');
+      const hiEl = document.getElementById('highlight');
+      const saveBtn = document.getElementById('save');
+      const presetSel = document.getElementById('presets');
+      const camSel = document.getElementById('camSelect');
+      let currentStream = null;
+
+      /* Sliders */
+      const hueSlider = document.getElementById('hueSlider');
+      noUiSlider.create(hueSlider, { start: [0, 60], connect: true, range: { min: 0, max: 360 }, step: 1 });
+      const satSlider = document.getElementById('satSlider');
+      noUiSlider.create(satSlider, { start: [50, 100], connect: true, range: { min: 0, max: 100 }, step: 1 });
+
+      function updateSatGradient() {
+        const [h1, h2] = hueSlider.noUiSlider.get().map(Number);
+        let mid = h1 <= h2 ? (h1 + h2) / 2 : ((h1 + (h2 + 360)) / 2) % 360;
+        satSlider.querySelector('.noUi-base').style.background = `linear-gradient(90deg,hsl(${mid},0%,50%) 0%,hsl(${mid},100%,50%) 100%)`;
+      }
+      hueSlider.noUiSlider.on('update', updateSatGradient);
+      updateSatGradient();
+
+      /* Camera */
+      const startScreen = document.getElementById('startScreen');
+      document.getElementById('startBtn').addEventListener('click', async () => {
+        startScreen.style.display = 'none';
+        await startStream();
+        await populateCamSelect();
+      });
+
+      async function startStream(deviceId) {
+        if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); }
+        const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: { facingMode: { ideal: 'environment' } } };
+        try { currentStream = await navigator.mediaDevices.getUserMedia(constraints); } catch (e) { currentStream = await navigator.mediaDevices.getUserMedia({ video: true }); }
+        video.srcObject = currentStream; await video.play();
+      }
+      async function populateCamSelect() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const vids = devices.filter(d => d.kind === 'videoinput');
+        camSel.innerHTML = '';
+        vids.forEach(v => {
+          const opt = document.createElement('option'); opt.value = v.deviceId; opt.text = v.label || `Camera ${camSel.length + 1}`; camSel.appendChild(opt);
+        });
+        if (camSel.options.length > 0) { camSel.value = currentStream.getVideoTracks()[0].getSettings().deviceId || camSel.options[0].value; }
+      }
+      camSel.addEventListener('change', () => startStream(camSel.value));
+
+      /* Resize */
+      function fit() { if (!video.videoWidth) return; const w = video.videoWidth, h = video.videoHeight;[canvas, hidden].forEach(c => { c.width = w; c.height = h; }); }
+      video.onloadedmetadata = () => { fit(); requestAnimationFrame(draw); };
+      window.addEventListener('resize', fit);
+
+      /* HSV util */
+      function rgb2hsv(r, g, b) { r /= 255; g /= 255; b /= 255; const v = Math.max(r, g, b), c = v - Math.min(r, g, b); let h = 0, s = v ? c / v : 0; if (c) { if (v === r) h = (g - b) / c % 6; else if (v === g) h = 2 + (b - r) / c; else h = 4 + (r - g) / c; h = Math.round(h * 60); if (h < 0) h += 360; } return [h, Math.round(s * 100), Math.round(v * 100)]; }
+
+      /* Main loop */
+      function draw() {
+        if (video.readyState < 2 || !video.videoWidth) { return requestAnimationFrame(draw); } // wait
+        hctx.drawImage(video, 0, 0, hidden.width, hidden.height);
+        const frame = hctx.getImageData(0, 0, hidden.width, hidden.height);
+        const data = frame.data;
+
+        const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
+        const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
+        const desat = +desatEl.value / 100;
+        const hi = +hiEl.value / 100; // 0‑2
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const [h, s] = rgb2hsv(r, g, b);
+          const hueMatch = (hMin <= hMax ? (h >= hMin && h <= hMax) : (h >= hMin || h <= hMax));
+          const match = hueMatch && s >= sMin && s <= sMax;
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          if (match) {
+            // increase saturation & brightness while keeping hue
+            const satFactor = 1 + hi; // 1‑3
+            let nr = gray + (r - gray) * satFactor;
+            let ng = gray + (g - gray) * satFactor;
+            let nb = gray + (b - gray) * satFactor;
+            // clamp & preserve brightness (simple clamp)
+            data[i] = nr > 255 ? 255 : nr;
+            data[i + 1] = ng > 255 ? 255 : ng;
+            data[i + 2] = nb > 255 ? 255 : nb;
+          } else {
+            data[i] = r * desat + gray * (1 - desat);
+            data[i + 1] = g * desat + gray * (1 - desat);
+            data[i + 2] = b * desat + gray * (1 - desat);
+          }
+        }
+        ctx.putImageData(frame, 0, 0);
+        requestAnimationFrame(draw);
+      }
+
+      /* Presets */
+      function loadPresets() { const list = JSON.parse(localStorage.getItem('colorPresets') || '[]'); presetSel.innerHTML = ''; list.forEach((p, i) => { const opt = document.createElement('option'); opt.value = i; opt.text = p.name; presetSel.appendChild(opt); }); }
+      loadPresets();
+      saveBtn.onclick = function () { const name = prompt('Preset name?'); if (!name) return; const preset = { name, hMin: +hueSlider.noUiSlider.get()[0], hMax: +hueSlider.noUiSlider.get()[1], sMin: +satSlider.noUiSlider.get()[0], sMax: +satSlider.noUiSlider.get()[1], desat: +desatEl.value, highlight: +hiEl.value }; const list = JSON.parse(localStorage.getItem('colorPresets') || '[]'); list.push(preset); localStorage.setItem('colorPresets', JSON.stringify(list)); loadPresets(); };
+      presetSel.onchange = function () { const idx = presetSel.value; if (idx === '') return; const p = JSON.parse(localStorage.getItem('colorPresets'))[idx]; hueSlider.noUiSlider.set([p.hMin, p.hMax]); satSlider.noUiSlider.set([p.sMin, p.sMax]); desatEl.value = p.desat; hiEl.value = p.highlight; updateSatGradient(); };
+
+      if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
+    })();
+  </script>
+</body>
+
+</html>
