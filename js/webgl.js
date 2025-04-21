@@ -16,6 +16,9 @@ precision mediump float;
 varying vec2 v_texCoord;
 uniform sampler2D u_image;
 uniform float u_hMin, u_hMax, u_sMin, u_sMax, u_desat, u_hi;
+uniform float u_zoom;
+uniform vec2 u_zoomCenter;
+
 vec3 rgb2hsv(vec3 c) {
   float r = c.r, g = c.g, b = c.b;
   float mx = max(max(r,g),b), mn = min(min(r,g),b);
@@ -31,8 +34,27 @@ vec3 rgb2hsv(vec3 c) {
   float s = mx == 0.0 ? 0.0 : d/mx;
   return vec3(h, s, mx);
 }
+
 void main() {
-  vec4 color = texture2D(u_image, v_texCoord);
+  // Apply zoom to texture coordinates
+  vec2 zoomedCoord = v_texCoord;
+  if (u_zoom > 1.0) {
+    // Calculate coordinates relative to zoom center
+    zoomedCoord = (v_texCoord - u_zoomCenter) / u_zoom + u_zoomCenter;
+  }
+
+  // Get color from zoomed coordinates (only if in bounds)
+  vec4 color;
+  if (zoomedCoord.x >= 0.0 && zoomedCoord.x <= 1.0 && 
+      zoomedCoord.y >= 0.0 && zoomedCoord.y <= 1.0) {
+    color = texture2D(u_image, zoomedCoord);
+  } else {
+    // Show black for out of bounds
+    color = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_FragColor = color;
+    return;
+  }
+
   vec3 hsv = rgb2hsv(color.rgb);
   float h = hsv.x;
   float s = hsv.y * 100.0;
@@ -89,6 +111,8 @@ void main() {
     const u_sMax = gl.getUniformLocation(program, 'u_sMax');
     const u_desat = gl.getUniformLocation(program, 'u_desat');
     const u_hi = gl.getUniformLocation(program, 'u_hi');
+    const u_zoom = gl.getUniformLocation(program, 'u_zoom');
+    const u_zoomCenter = gl.getUniformLocation(program, 'u_zoomCenter');
 
     // Fullscreen quad
     const quad = gl.createBuffer();
@@ -122,7 +146,9 @@ void main() {
         u_sMin,
         u_sMax,
         u_desat,
-        u_hi
+        u_hi,
+        u_zoom,
+        u_zoomCenter
       }
     };
   }
