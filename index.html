@@ -368,6 +368,8 @@ void main() {
       /* HSV util */
       function rgb2hsv(r, g, b) { r /= 255; g /= 255; b /= 255; const v = Math.max(r, g, b), c = v - Math.min(r, g, b); let h = 0, s = v ? c / v : 0; if (c) { if (v === r) h = (g - b) / c % 6; else if (v === g) h = 2 + (b - r) / c; else h = 4 + (r - g) / c; h = Math.round(h * 60); if (h < 0) h += 360; } return [h, Math.round(s * 100), Math.round(v * 100)]; }
 
+      let animationId = null;
+
       function draw() {
         if (video.readyState < 2 || !video.videoWidth) { return requestAnimationFrame(draw); }
 
@@ -401,45 +403,17 @@ void main() {
         // Draw
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-        requestAnimationFrame(draw);
+        animationId = video.requestVideoFrameCallback(draw);
       }
-      // /* Main loop */
-      // function draw() {
-      //   if (video.readyState < 2 || !video.videoWidth) { return requestAnimationFrame(draw); } // wait
-      //   hctx.drawImage(video, 0, 0, hidden.width, hidden.height);
-      //   const frame = hctx.getImageData(0, 0, hidden.width, hidden.height);
-      //   const data = frame.data;
 
-      //   const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
-      //   const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
-      //   const desat = +desatEl.value / 100;
-      //   const hi = +hiEl.value / 100; // 0‑2
-
-      //   for (let i = 0; i < data.length; i += 4) {
-      //     const r = data[i], g = data[i + 1], b = data[i + 2];
-      //     const [h, s] = rgb2hsv(r, g, b);
-      //     const hueMatch = (hMin <= hMax ? (h >= hMin && h <= hMax) : (h >= hMin || h <= hMax));
-      //     const match = hueMatch && s >= sMin && s <= sMax;
-      //     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-      //     if (match) {
-      //       // increase saturation & brightness while keeping hue
-      //       const satFactor = 1 + hi; // 1‑3
-      //       let nr = gray + (r - gray) * satFactor;
-      //       let ng = gray + (g - gray) * satFactor;
-      //       let nb = gray + (b - gray) * satFactor;
-      //       // clamp & preserve brightness (simple clamp)
-      //       data[i] = nr > 255 ? 255 : nr;
-      //       data[i + 1] = ng > 255 ? 255 : ng;
-      //       data[i + 2] = nb > 255 ? 255 : nb;
-      //     } else {
-      //       data[i] = r * desat + gray * (1 - desat);
-      //       data[i + 1] = g * desat + gray * (1 - desat);
-      //       data[i + 2] = b * desat + gray * (1 - desat);
-      //     }
-      //   }
-      //   ctx.putImageData(frame, 0, 0);
-      //   requestAnimationFrame(draw);
-      // }
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && animationId) {
+          video.cancelVideoFrameCallback(animationId);
+          animationId = null;
+        } else if (!document.hidden && !animationId) {
+          animationId = video.requestVideoFrameCallback(draw);
+        }
+      });
 
       /* Presets */
       function loadPresets() {
