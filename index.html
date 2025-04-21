@@ -37,6 +37,9 @@
       display: none;
     }
 
+
+
+
     #controls {
       position: fixed;
       bottom: 0;
@@ -129,75 +132,6 @@
       display: none;
       /* Remove the default lines inside handles */
     }
-
-    /* Add these styles to your existing stylesheet */
-    #infoIcon {
-      position: fixed;
-      top: 15px;
-      right: 15px;
-      width: 30px;
-      height: 30px;
-      background: rgba(0, 0, 0, 0.5);
-      color: white;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      cursor: pointer;
-      z-index: 30;
-    }
-
-    #infoModal {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #222;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-      width: 80%;
-      max-width: 400px;
-      z-index: 100;
-      overflow: hidden;
-    }
-
-    #modalHeader {
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #444;
-    }
-
-    #modalTitle {
-      font-weight: bold;
-      font-size: 18px;
-    }
-
-    #closeModal {
-      background: transparent;
-      color: #ccc;
-      border: none;
-      font-size: 20px;
-      cursor: pointer;
-      padding: 0;
-    }
-
-    #modalContent {
-      padding: 16px;
-      line-height: 1.5;
-    }
-
-    #modalOverlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 90;
-    }
   </style>
 </head>
 
@@ -220,22 +154,6 @@
     <button id="save">✚</button>
     <select id="presets"></select>
     <button id="deletePreset" disabled>🗑️</button>
-  </div>
-
-  <div id="infoIcon">i</div>
-
-  <div id="modalOverlay"></div>
-  <div id="infoModal">
-    <div id="modalHeader">
-      <div id="modalTitle">About Color Hunt</div>
-      <button id="closeModal">✕</button>
-    </div>
-    <div id="modalContent">
-      <p><strong>Color Hunt</strong> v1.0.0</p>
-      <p>A real-time color filter application that uses WebGL to isolate colors in a video stream.</p>
-      <p>© 2025 Martin Galese</p>
-      <p>Built with HTML5, CSS, JavaScript and WebGL.</p>
-    </div>
   </div>
 
   <div id="startScreen"><button id="startBtn">Start Camera</button></div>
@@ -263,360 +181,333 @@
 
       const gl = canvas.getContext('webgl');
       if (!gl) { alert('WebGL not supported'); return; }
+
+      canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        alert('WebGL context lost. Please reload the page.');
+      });
+
+      // Vertex shader
+      const vsSource = `
+attribute vec2 a_position;
+attribute vec2 a_texCoord;
+varying vec2 v_texCoord;
+void main() {
+  gl_Position = vec4(a_position, 0, 1);
+  v_texCoord = a_texCoord;
+}`;
+
       // Fragment shader
-      const fsSource = `tener('webglcontextlost', (event) => {
-precision mediump float;ault();
-varying vec2 v_texCoord;text lost. Please reload the page.');
+      const fsSource = `
+precision mediump float;
+varying vec2 v_texCoord;
 uniform sampler2D u_image;
 uniform float u_hMin, u_hMax, u_sMin, u_sMax, u_desat, u_hi;
 vec3 rgb2hsv(vec3 c) {
   float r = c.r, g = c.g, b = c.b;
   float mx = max(max(r,g),b), mn = min(min(r,g),b);
-  float d = mx - mn;Coord;
-  float h = 0.0;exCoord;
+  float d = mx - mn;
+  float h = 0.0;
   if (d > 0.0) {
-    if (mx == r) h = mod((g-b)/d,6.0);;
+    if (mx == r) h = mod((g-b)/d,6.0);
     else if (mx == g) h = (b-r)/d + 2.0;
     else h = (r-g)/d + 4.0;
     h *= 60.0;
     if (h < 0.0) h += 360.0;
-  }   const fsSource = `
-  float s = mx == 0.0 ? 0.0 : d / mx;
-      return vec3(h, s, mx);
-    }niform sampler2D u_image;
-    void main() {
-      u_hMin, u_hMax, u_sMin, u_sMax, u_desat, u_hi;
+  }
+  float s = mx == 0.0 ? 0.0 : d/mx;
+  return vec3(h, s, mx);
+}
+void main() {
   vec4 color = texture2D(u_image, v_texCoord);
-  vec3 hsv = rgb2hsv(color.rgb); b;
-  float h = hsv.x; ax(r, g), b), mn = min(min(r, g), b);
+  vec3 hsv = rgb2hsv(color.rgb);
+  float h = hsv.x;
   float s = hsv.y * 100.0;
   float v = hsv.z;
   bool hueMatch = (u_hMin <= u_hMax) ? (h >= u_hMin && h <= u_hMax) : (h >= u_hMin || h <= u_hMax);
   bool match = hueMatch && s >= u_sMin && s <= u_sMax;
   float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-      if (match) {
-        r - g)/d + 4.0;
+  if (match) {
     float satFactor = 1.0 + u_hi;
     vec3 ncolor = gray + (color.rgb - gray) * satFactor;
-        gl_FragColor = vec4(clamp(ncolor, 0.0, 1.0), 1.0);
-      } else {= mx == 0.0 ? 0.0 : d / mx;
+    gl_FragColor = vec4(clamp(ncolor, 0.0, 1.0), 1.0);
+  } else {
     vec3 ncolor = color.rgb * u_desat + gray * (1.0 - u_desat);
-        gl_FragColor = vec4(ncolor, 1.0);
-      }d main() {
-      } `;ec4 color = texture2D(u_image, v_texCoord);
-  vec3 hsv = rgb2hsv(color.rgb);
+    gl_FragColor = vec4(ncolor, 1.0);
+  }
+}`;
+
       // Compile shader utility
       function compileShader(gl, src, type) {
         const s = gl.createShader(type);
-        gl.shaderSource(s, src);Max) ? (h >= u_hMin && h <= u_hMax) : (h >= u_hMin || h <= u_hMax);
-        gl.compileShader(s); >= u_sMin && s <= u_sMax;
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
         if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
         return s;
-      }at satFactor = 1.0 + u_hi;
-    vec3 ncolor = gray + (color.rgb - gray) * satFactor;
-      // Create program(clamp(ncolor, 0.0, 1.0), 1.0);
+      }
+
+      // Create program
       const program = gl.createProgram();
       gl.attachShader(program, compileShader(gl, vsSource, gl.VERTEX_SHADER));
       gl.attachShader(program, compileShader(gl, fsSource, gl.FRAGMENT_SHADER));
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw gl.getProgramInfoLog(program);
 
-      // Look up locationsility
+      // Look up locations
       const posLoc = gl.getAttribLocation(program, 'a_position');
       const texLoc = gl.getAttribLocation(program, 'a_texCoord');
       const u_image = gl.getUniformLocation(program, 'u_image');
       const u_hMin = gl.getUniformLocation(program, 'u_hMin');
-      const u_hMax = gl.getUniformLocation(program, 'u_hMax');w gl.getShaderInfoLog(s);
+      const u_hMax = gl.getUniformLocation(program, 'u_hMax');
       const u_sMin = gl.getUniformLocation(program, 'u_sMin');
       const u_sMax = gl.getUniformLocation(program, 'u_sMax');
       const u_desat = gl.getUniformLocation(program, 'u_desat');
       const u_hi = gl.getUniformLocation(program, 'u_hi');
-      const program = gl.createProgram();
-      // Fullscreen quadogram, compileShader(gl, vsSource, gl.VERTEX_SHADER));
-      const quad = gl.createBuffer();eShader(gl, fsSource, gl.FRAGMENT_SHADER));
+
+      // Fullscreen quad
+      const quad = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([US)) throw gl.getProgramInfoLog(program);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
         -1, -1, 0, 1,
-        1, -1, 1, 1,ations
-        -1, 1, 0, 0, gl.getAttribLocation(program, 'a_position');
-        1, 1, 1, 0,= gl.getAttribLocation(program, 'a_texCoord');
-      ]), gl.STATIC_DRAW);etUniformLocation(program, 'u_image');
-      const u_hMin = gl.getUniformLocation(program, 'u_hMin');
-      // Texture for video framermLocation(program, 'u_hMax');
-      const tex = gl.createTexture();ation(program, 'u_sMin');
-      gl.bindTexture(gl.TEXTURE_2D, tex);n(program, 'u_sMax');
+        1, -1, 1, 1,
+        -1, 1, 0, 0,
+        1, 1, 1, 0,
+      ]), gl.STATIC_DRAW);
+
+      // Texture for video frame
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      const quad = gl.createBuffer();
-      function updateSatGradient() { quad);
+
+      function updateSatGradient() {
         const [h1, h2] = hueSlider.noUiSlider.get().map(Number);
         let mid = h1 <= h2 ? (h1 + h2) / 2 : ((h1 + (h2 + 360)) / 2) % 360;
-        satSlider.querySelector('.noUi-base').style.background = `linear - gradient(90deg, hsl(${ mid }, 0 %, 50 %) 0 %, hsl(${ mid }, 100 %, 50 %) 100 %)`;
-      } -1, 1, 0, 0,
+        satSlider.querySelector('.noUi-base').style.background = `linear-gradient(90deg,hsl(${mid},0%,50%) 0%,hsl(${mid},100%,50%) 100%)`;
+      }
       hueSlider.noUiSlider.on('update', updateSatGradient);
       updateSatGradient();
 
-      /* Camera */or video frame
+      /* Camera */
       const startScreen = document.getElementById('startScreen');
-      gl.bindTexture(gl.TEXTURE_2D, tex);
-      // Hide start screen on mobile browsersURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      function isMobile() {EXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      // Hide start screen on mobile browsers
+      function isMobile() {
         return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
-      }l.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      }
       if (isMobile()) {
         startScreen.style.display = 'none';
-        startStream(); = hueSlider.noUiSlider.get().map(Number);
-        populateCamSelect(); (h1 + h2) / 2 : ((h1 + (h2 + 360)) / 2) % 360;
-      } satSlider.querySelector('.noUi-base').style.background = `linear - gradient(90deg, hsl(${ mid }, 0 %, 50 %) 0 %, hsl(${ mid }, 100 %, 50 %) 100 %)`;
+        startStream();
+        populateCamSelect();
       }
+
       document.getElementById('startBtn').addEventListener('click', async () => {
         startScreen.style.display = 'none';
         await startStream();
         await populateCamSelect();
-      });st startScreen = document.getElementById('startScreen');
+      });
 
-      async function startStream(deviceId) {s
+      async function startStream(deviceId) {
         if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); }
         const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: { facingMode: { ideal: 'environment' } } };
         try { currentStream = await navigator.mediaDevices.getUserMedia(constraints); } catch (e) { currentStream = await navigator.mediaDevices.getUserMedia({ video: true }); }
         video.srcObject = currentStream; await video.play();
-      } startScreen.style.display = 'none';
+      }
       async function populateCamSelect() {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const vids = devices.filter(d => d.kind === 'videoinput');
         camSel.innerHTML = '';
-        vids.forEach(v => {Id('startBtn').addEventListener('click', async () => {
-          const opt = document.createElement('option'); opt.value = v.deviceId; opt.text = v.label || `Camera ${ camSel.length + 1 } `; camSel.appendChild(opt);
-        });it startStream();
+        vids.forEach(v => {
+          const opt = document.createElement('option'); opt.value = v.deviceId; opt.text = v.label || `Camera ${camSel.length + 1}`; camSel.appendChild(opt);
+        });
         if (camSel.options.length > 0) { camSel.value = currentStream.getVideoTracks()[0].getSettings().deviceId || camSel.options[0].value; }
-      });
+      }
       camSel.addEventListener('change', () => startStream(camSel.value));
-      async function startStream(deviceId) {
-      function updateQuad() {currentStream.getTracks().forEach(t => t.stop()); }
-        const vr = video.videoWidth / video.videoHeight;Id: { exact: deviceId } } } : { video: { facingMode: { ideal: 'environment' } } };
-        const sr = innerWidth / innerHeight;r.mediaDevices.getUserMedia(constraints); } catch (e) { currentStream = await navigator.mediaDevices.getUserMedia({ video: true }); }
-        let sx = 1, sy = 1;urrentStream; await video.play();
+
+      function updateQuad() {
+        const vr = video.videoWidth / video.videoHeight;
+        const sr = innerWidth / innerHeight;
+        let sx = 1, sy = 1;
         if (vr > sr) sy = sr / vr; else sx = vr / sr;
         gl.bindBuffer(gl.ARRAY_BUFFER, quad);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([erateDevices();
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
           -sx, -sy, 0, 1, sx, -sy, 1, 1, -sx, sy, 0, 0, sx, sy, 1, 0]), gl.STATIC_DRAW);
-      } camSel.innerHTML = '';
-        vids.forEach(v => {
-      /* Resize */t = document.createElement('option'); opt.value = v.deviceId; opt.text = v.label || `Camera ${ camSel.length + 1 } `; camSel.appendChild(opt);
-      function fit() {
-        if (!video.videoWidth) return; { camSel.value = currentStream.getVideoTracks()[0].getSettings().deviceId || camSel.options[0].value; }
       }
-        // Get device pixel ratioange', () => startStream(camSel.value));
+
+      /* Resize */
+      function fit() {
+        if (!video.videoWidth) return;
+
+        // Get device pixel ratio
         const dpr = window.devicePixelRatio || 1;
-      function updateQuad() {
+
         // Set canvas dimensions to match the window size, scaled by the pixel ratio
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
-        if (vr > sr) sy = sr / vr; else sx = vr / sr;
+
         // Set the canvas style dimensions to match the window size
-        canvas.style.width = `${ window.innerWidth } px`;y([
-        canvas.style.height = `${ window.innerHeight } px`;sx, sy, 1, 0]), gl.STATIC_DRAW);
-      }
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+
         // Set WebGL viewport to match the canvas size
         gl.viewport(0, 0, canvas.width, canvas.height);
-      }unction fit() {
-        if (!video.videoWidth) return;
-      let animationId = null;
-        // Get device pixel ratio
-      function draw(now, metadata) {elRatio || 1;
-        if (video.readyState < 2 || !video.videoWidth) {
-          animationId = video.requestVideoFrameCallback(draw);led by the pixel ratio
-          return;dth = window.innerWidth * dpr;
-        }anvas.height = window.innerHeight * dpr;
+      }
 
-        // Process frames style dimensions to match the window size
-        gl.useProgram(program);{window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      // Set uniforms only when they change, not every frame
-      const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
-      const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
-      const desat = +desatEl.value / 100;
-      const hi = +hiEl.value / 100;
       let animationId = null;
-      // Upload video frame as texture
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tex);videoWidth) {
+
+      function draw(now, metadata) {
+        if (video.readyState < 2 || !video.videoWidth) {
+          animationId = video.requestVideoFrameCallback(draw);
+          return;
+        }
+
+        // Process frame
+        gl.useProgram(program);
+
+        // Set uniforms only when they change, not every frame
+        const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
+        const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
+        const desat = +desatEl.value / 100;
+        const hi = +hiEl.value / 100;
+
+        // Upload video frame as texture
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-        return;
+
         // Set uniforms
         gl.uniform1i(u_image, 0);
         gl.uniform1f(u_hMin, hMin);
         gl.uniform1f(u_hMax, hMax);
         gl.uniform1f(u_sMin, sMin);
-        gl.uniform1f(u_sMax, sMax);hey change, not every frame
-        gl.uniform1f(u_desat, desat); r.noUiSlider.get().map(Number);
-        gl.uniform1f(u_hi, hi); tSlider.noUiSlider.get().map(Number);
-        const desat = +desatEl.value / 100;
+        gl.uniform1f(u_sMax, sMax);
+        gl.uniform1f(u_desat, desat);
+        gl.uniform1f(u_hi, hi);
+
         // Set up quad (this doesn't need to happen every frame if it's not changing)
         gl.bindBuffer(gl.ARRAY_BUFFER, quad);
         gl.enableVertexAttribArray(posLoc);
         gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
         gl.enableVertexAttribArray(texLoc);
-        gl.vertexAttribPointer(texLoc, 2, gl.FLOAT, false, 16, 8); D_BYTE, video);
+        gl.vertexAttribPointer(texLoc, 2, gl.FLOAT, false, 16, 8);
 
-        // Drawuniforms
+        // Draw
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        gl.uniform1f(u_hMin, hMin);
-        // Schedule next frameMax);
+
+        // Schedule next frame
         animationId = video.requestVideoFrameCallback(draw);
-      } gl.uniform1f(u_sMax, sMax);
-      gl.uniform1f(u_desat, desat);
-      // Start the process hi);
+      }
+
+      // Start the process
       video.onloadedmetadata = () => {
-        fit(); up quad(this doesn't need to happen every frame if it's not changing)
-        updateQuad(); (gl.ARRAY_BUFFER, quad);
+        fit();
+        updateQuad();
         animationId = video.requestVideoFrameCallback(draw);
-      }; gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
-      gl.enableVertexAttribArray(texLoc);
-      // Add cleanup if needed(texLoc, 2, gl.FLOAT, false, 16, 8);
+      };
+
+      // Add cleanup if needed
       function cleanup() {
         if (animationId) {
           video.cancelVideoFrameCallback(animationId);
         }
-      } // Schedule next frame
-      animationId = video.requestVideoFrameCallback(draw);
+      }
+
       window.addEventListener('resize', () => { fit(); updateQuad(); });
 
       window.addEventListener('orientationchange', () => {
         setTimeout(() => {
-          ta = () => {
-            fit();
-            updateQuad();
-          }, 200); nId = video.requestVideoFrameCallback(draw);
+          fit();
+          updateQuad();
+        }, 200);
       });
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && animationId) {
           video.cancelVideoFrameCallback(animationId);
-          animationId = null; ameCallback(animationId);
+          animationId = null;
         } else if (!document.hidden && !animationId) {
           animationId = video.requestVideoFrameCallback(draw);
         }
-      }); dow.addEventListener('resize', () => { fit(); updateQuad(); });
+      });
 
-      /* Presets */ntListener('orientationchange', () => {
-        function loadPresets() {
-          const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
-          presetSel.innerHTML = '';
-          // Add a default empty option
-          const defaultOpt = document.createElement('option');
-          defaultOpt.value = '';
-          defaultOpt.text = '-- Select Preset --';e', () => {
-          presetSel.appendChild(defaultOpt);) {
-        video.cancelVideoFrameCallback(animationId);
+      /* Presets */
+      function loadPresets() {
+        const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
+        presetSel.innerHTML = '';
+        // Add a default empty option
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.text = '-- Select Preset --';
+        presetSel.appendChild(defaultOpt);
+
         list.forEach((p, i) => {
           const opt = document.createElement('option');
-          opt.value = i; video.requestVideoFrameCallback(draw);
+          opt.value = i;
           opt.text = p.name;
           presetSel.appendChild(opt);
         });
-        /* Presets */
+
         // Enable/disable delete button based on selection
-        deleteBtn.disabled = presetSel.value === ''; ('colorPresets') || '[]');
-      } presetSel.innerHTML = '';
-      // Add a default empty option
-      // Delete button functionalitycreateElement('option');
+        deleteBtn.disabled = presetSel.value === '';
+      }
+
+      // Delete button functionality
       deleteBtn.onclick = function () {
-        if (presetSel.value === '') return; --';
-        presetSel.appendChild(defaultOpt);
+        if (presetSel.value === '') return;
+
         if (confirm('Are you sure you want to delete this preset?')) {
           const idx = parseInt(presetSel.value);
           const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
-          opt.value = i;
-          // Remove the preset at the selected index
-          list.splice(idx, 1); d(opt);
-        });
-        // Save updated list
-        localStorage.setItem('colorPresets', JSON.stringify(list));
-        deleteBtn.disabled = presetSel.value === '';
-        // Refresh preset list
-        loadPresets();
-      }Delete button functionality
-    }; leteBtn.onclick = function () {
-      if (presetSel.value === '') return;
-      // Update delete button state when preset selection changes
-      presetSel.onchange = function () {nt to delete this preset ? ')) {
-        const idx = presetSel.value; tSel.value);
-        deleteBtn.disabled = idx === ''; torage.getItem('colorPresets') || '[]');
 
-        if (idx === '') return;at the selected index
+          // Remove the preset at the selected index
+          list.splice(idx, 1);
+
+          // Save updated list
+          localStorage.setItem('colorPresets', JSON.stringify(list));
+
+          // Refresh preset list
+          loadPresets();
+        }
+      };
+
+      // Update delete button state when preset selection changes
+      presetSel.onchange = function () {
+        const idx = presetSel.value;
+        deleteBtn.disabled = idx === '';
+
+        if (idx === '') return;
         const p = JSON.parse(localStorage.getItem('colorPresets'))[idx];
         hueSlider.noUiSlider.set([p.hMin, p.hMax]);
         satSlider.noUiSlider.set([p.sMin, p.sMax]);
-        desatEl.value = p.desat;colorPresets', JSON.stringify(list));
+        desatEl.value = p.desat;
         hiEl.value = p.highlight;
-        updateSatGradient(); list
-      }; loadPresets();
-    }
-    saveBtn.onclick = function () {
-      const name = prompt('Preset name?');
-      if (!name) return;ton state when preset selection changes
-      const preset = { = function() {
-        name, dx = presetSel.value;
-        hMin: +hueSlider.noUiSlider.get()[0],
+        updateSatGradient();
+      };
+
+      saveBtn.onclick = function () {
+        const name = prompt('Preset name?');
+        if (!name) return;
+        const preset = {
+          name,
+          hMin: +hueSlider.noUiSlider.get()[0],
           hMax: +hueSlider.noUiSlider.get()[1],
-            sMin: +satSlider.noUiSlider.get()[0],
-              sMax: +satSlider.noUiSlider.get()[1], em('colorPresets'))[idx];
-        desat: +desatEl.value, ([p.hMin, p.hMax]);
-        highlight: +hiEl.value([p.sMin, p.sMax]);
-      }; satEl.value = p.desat;
+          sMin: +satSlider.noUiSlider.get()[0],
+          sMax: +satSlider.noUiSlider.get()[1],
+          desat: +desatEl.value,
+          highlight: +hiEl.value
+        };
         const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
-        list.push(preset););
-      localStorage.setItem('colorPresets', JSON.stringify(list));
+        list.push(preset);
+        localStorage.setItem('colorPresets', JSON.stringify(list));
+        loadPresets();
+      };
+
       loadPresets();
-    }; veBtn.onclick = function () {
-      const name = prompt('Preset name?');
-      loadPresets(); eturn;
-      const preset = {
-        if('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
-       hMin: +hueSlider.noUiSlider.get()[0],
-      /* Info Modal */Max: +hueSlider.noUiSlider.get()[1],
-        const infoIcon = document.getElementById('infoIcon'); sMin: +satSlider.noUiSlider.get()[0],
-        const infoModal = document.getElementById('infoModal'); sMax: +satSlider.noUiSlider.get()[1],
-        const modalOverlay = document.getElementById('modalOverlay'); desat: +desatEl.value,
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</html ></body >  </script> })(); modalOverlay.addEventListener('click', hideModal); closeModal.addEventListener('click',
-  hideModal); infoIcon.addEventListener('click', showModal); } modalOverlay.style.display = 'none';
-  infoModal.style.display = 'none'; function hideModal() { } modalOverlay.style.display = 'block';
-  infoModal.style.display = 'block'; function showModal() { const closeModal = document.getElementById('closeModal');
-  highlight: +hiEl.value
-  };
-  const list = JSON.parse(localStorage.getItem('colorPresets') || '[]');
-  list.push(preset);
-  localStorage.setItem('colorPresets', JSON.stringify(list));
-  loadPresets();
-  };
-
-  loadPresets();
-
-  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
-  })();
+      if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
+    })();
   </script>
 </body>
 
