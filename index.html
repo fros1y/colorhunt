@@ -363,19 +363,19 @@ void main() {
           return;
         }
 
-        // Process only when we have a new frame
+        // Process frame
         gl.useProgram(program);
+
+        // Set uniforms only when they change, not every frame
+        const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
+        const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
+        const desat = +desatEl.value / 100;
+        const hi = +hiEl.value / 100;
 
         // Upload video frame as texture
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
-
-        // Set uniforms and draw as before
-        const [hMin, hMax] = hueSlider.noUiSlider.get().map(Number);
-        const [sMin, sMax] = satSlider.noUiSlider.get().map(Number);
-        const desat = +desatEl.value / 100;
-        const hi = +hiEl.value / 100;
 
         // Set uniforms
         gl.uniform1i(u_image, 0);
@@ -386,7 +386,7 @@ void main() {
         gl.uniform1f(u_desat, desat);
         gl.uniform1f(u_hi, hi);
 
-        // Set up quad
+        // Set up quad (this doesn't need to happen every frame if it's not changing)
         gl.bindBuffer(gl.ARRAY_BUFFER, quad);
         gl.enableVertexAttribArray(posLoc);
         gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 16, 0);
@@ -422,9 +422,6 @@ void main() {
           updateQuad();
         }, 200);
       });
-
-      /* HSV util */
-      function rgb2hsv(r, g, b) { r /= 255; g /= 255; b /= 255; const v = Math.max(r, g, b), c = v - Math.min(r, g, b); let h = 0, s = v ? c / v : 0; if (c) { if (v === r) h = (g - b) / c % 6; else if (v === g) h = 2 + (b - r) / c; else h = 4 + (r - g) / c; h = Math.round(h * 60); if (h < 0) h += 360; } return [h, Math.round(s * 100), Math.round(v * 100)]; }
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && animationId) {
