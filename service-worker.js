@@ -3,6 +3,17 @@ const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './styles.css',
+  './js/camera.js',
+  './js/main.js',
+  './js/presets.js',
+  './js/ui.js',
+  './js/webgl.js',
+  './icons/color-hunt-180.png',
+  './icons/color-hunt-192.png',
+  './icons/color-hunt-512.png',
+  './icons/favicon-32.png',
+  './icons/favicon-48.png',
   'https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css',
   'https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js'
 ];
