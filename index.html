@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable"="yes" />
   <title>Color Hunt</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
@@ -30,9 +30,23 @@
     <button id="save">✚</button>
     <select id="presets"></select>
     <button id="deletePreset" disabled>🗑️</button>
+    <button id="aboutBtn">ℹ️</button>
   </div>
 
   <div id="startScreen"><button id="startBtn">Start Camera</button></div>
+
+  <div id="aboutModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>About Color Hunt</h2>
+      <p><strong>Version:</strong> 1.0.0</p>
+      <p><strong>Author:</strong> Martin Galese</p>
+      <p><strong>License:</strong> MIT</p>
+      <p>Color Hunt is a real-time color visualization tool that allows you to highlight specific colors in your camera
+        feed.</p>
+      <p>© 2025 All Rights Reserved</p>
+    </div>
+  </div>
 
   <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>

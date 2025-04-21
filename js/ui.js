@@ -2,12 +2,30 @@
 (function () {
   const hueSlider = document.getElementById('hueSlider');
   const satSlider = document.getElementById('satSlider');
+  const aboutBtn = document.getElementById('aboutBtn');
+  const aboutModal = document.getElementById('aboutModal');
+  const closeBtn = document.querySelector('.close');
 
   function updateSatGradient() {
     const [h1, h2] = hueSlider.noUiSlider.get().map(Number);
     let mid = h1 <= h2 ? (h1 + h2) / 2 : ((h1 + (h2 + 360)) / 2) % 360;
     satSlider.querySelector('.noUi-base').style.background = `linear-gradient(90deg,hsl(${mid},0%,50%) 0%,hsl(${mid},100%,50%) 100%)`;
   }
+
+  // About modal functionality
+  aboutBtn.addEventListener('click', () => {
+    aboutModal.style.display = 'block';
+  });
+
+  closeBtn.addEventListener('click', () => {
+    aboutModal.style.display = 'none';
+  });
+
+  window.addEventListener('click', (event) => {
+    if (event.target === aboutModal) {
+      aboutModal.style.display = 'none';
+    }
+  });
 
   // Initialize sliders
   function initSliders() {
