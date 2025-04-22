@@ -16,8 +16,18 @@
   function updateQuad() {
     const vr = video.videoWidth / video.videoHeight;
     const sr = innerWidth / innerHeight;
+
+    // Use "cover" instead of "contain" approach to fill the screen
+    // This ensures the video always fills the screen on mobile devices
     let sx = 1, sy = 1;
-    if (vr > sr) sy = sr / vr; else sx = vr / sr;
+    if (vr > sr) {
+      // Video is wider than screen: crop sides
+      sx = vr / sr;
+    } else {
+      // Video is taller than screen: crop top/bottom
+      sy = sr / vr;
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, quad);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
       -sx, -sy, 0, 1, sx, -sy, 1, 1, -sx, sy, 0, 0, sx, sy, 1, 0]), gl.STATIC_DRAW);
